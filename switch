@@ -1,0 +1,90 @@
+; Demonstrates implementation of delay loop
+; Author: Prof T Hanekom
+; Date of last revision: February 2010
+
+	list   		p=PIC18F45K20 ; processor type
+	#include	"C:\Program Files\Microchip\MPASM Suite\p18f45K20.inc"
+	
+;============== Definition of variables ===============
+	cblock 0x00 ;start at first address in general purpose memory (part of Access Bank)
+		Delay1	; Define two file registers for the
+		Delay2	; delay loop
+		Delay3
+		Count	; counter register address
+	endc
+
+;alternative definition of variables
+;Delay1	equ	0x00	; First address in general purpose memory
+;Delay2 equ	0x01
+
+;============== Reset vector ===============	
+	org 00h
+
+;============== Setup ==============	
+Setup
+	
+		; Initialize Port D (example on p. 57 of datasheet)
+		CLRF 	PORTD ;Initialize PORTD
+		CLRF	LATD
+		CLRF 	TRISD ;and set RD<7:0> as outputs
+			
+	
+;============ Main program ==============
+Main 	movlw 		0x01 		; move 0FH = 00001111B to W register (4 LEDs on)
+		movwf 		PORTD		; move W to port D 
+		call 		On_delay_loop
+		movlw 		0x04 		; move 00H = 00000000B to W register (4 LEDs off)
+		movwf 		PORTD		; move W to port D
+		call 		Off_delay_loop
+		goto 		Main 		; do this loop forever
+					
+	
+	
+;========= Delay loop subroutine: on cycle
+On_delay_loop			; Subroutine On_delay_loop
+	movlw	0x02		; short delay for debugging purposes
+	movlw	0xff		; you'll have to make it longer to see 
+	movwf	Delay2		; the LEDs flash
+Go_on1					; Label to facilitate reloading of Delay1 initial value
+	movlw	0x03
+	movlw	0xfF
+	movwf	Delay1
+Go_on2
+	decfsz	Delay1,f	; Waste time.  ;Label On
+	goto	Go_on2		; The Inner loop takes 3 instructions per loop * 256 loopss = 768 instructions
+	decfsz	Delay2,f	; The outer loop takes an additional (3 instructions per loop + 2 instructions to reload Delay 1) * 256 loops
+	goto	Go_on1		; (768+5) * 256 = 197888 instructions / 1M instructions per second = 0.198 sec.
+
+	return
+	
+;========= Delay loop subroutine: off cycle
+Off_delay_loop
+	movlw	0x03
+	movwf	Delay3
+
+Go_off3
+	movlw	0x02
+	movlw	0xFF
+	movwf	Delay2
+Go_off1				; Label to facilitate reloading of Delay1 initial value
+	movlw	0x02	; Note this is a different value (arbitrary) from the one used in On_delay_loop.
+	movlw	0xFF
+	movwf	Delay1
+Go_off2
+	decfsz	Delay1,f
+	goto	Go_off2
+	decfsz	Delay2,f
+	goto	Go_off1
+	decfsz	Delay3,f
+	goto	Go_off3
+
+
+	return
+
+
+;========== End of code =============
+	end
+	
+
+;ASSIGNMENT
+;Change the code to implement a 4 MHz internal clock
